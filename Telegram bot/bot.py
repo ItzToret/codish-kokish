@@ -35,6 +35,10 @@ async def st(msg:types.Message):
     await msg.reply("Круть!")
     await bot.send_sticker(msg.from_user.id, sticker=stickers['Like'])
 
+@dp.message_handler(content_types=["voice"])
+async def voice_processing(message:types.Message):
+    await message.reply("Круть!")
+
 
 # Запуск процесса поллинга новых апдейтов
 async def main():
