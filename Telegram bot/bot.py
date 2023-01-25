@@ -8,7 +8,7 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 
-from config import TOKEN
+from config.config import TOKEN
 from stickers import stickers
 
 bot = Bot(token=TOKEN)
