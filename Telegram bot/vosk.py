@@ -1,37 +1,27 @@
-from vosk import Model, KaldiRecognizer, SetLogLevel
-from pydub import AudioSegment
-import subprocess
-import json
-import os
+from pdfminer3.layout import LAParams, LTTextBox
+from pdfminer3.pdfpage import PDFPage
+from pdfminer3.pdfinterp import PDFResourceManager
+from pdfminer3.pdfinterp import PDFPageInterpreter
+from pdfminer3.converter import PDFPageAggregator
+from pdfminer3.converter import TextConverter
+import io
 
-SetLogLevel(0)
+resource_manager = PDFResourceManager()
+fake_file_handle = io.StringIO()
+converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+page_interpreter = PDFPageInterpreter(resource_manager, converter)
 
-# Проверяем наличие модели
-if not os.path.exists("model"):
-    print ("Please download the model from https://alphacephei.com/vosk/models and unpack as 'model' in the current folder.")
-    exit (1)
+with open('testus.pdf', 'rb') as fh:
 
-# Устанавливаем Frame Rate
-FRAME_RATE = 16000
-CHANNELS=1
+    for page in PDFPage.get_pages(fh,
+                                  caching=True,
+                                  check_extractable=True):
+        page_interpreter.process_page(page)
 
-model = Model("model")
-rec = KaldiRecognizer(model, FRAME_RATE)
-rec.SetWords(True)
+    text = fake_file_handle.getvalue()
 
-# Используя библиотеку pydub делаем предобработку аудио
-mp3 = AudioSegment.from_mp3('Song.mp3')
-mp3 = mp3.set_channels(CHANNELS)
-mp3 = mp3.set_frame_rate(FRAME_RATE)
+# close open handles
+converter.close()
+fake_file_handle.close()
 
-# Преобразуем вывод в json
-rec.AcceptWaveform(mp3.raw_data)
-result = rec.Result()
-text = json.loads(result)["text"]
-
-# Добавляем пунктуацию
-cased = subprocess.check_output('python3 recasepunc/recasepunc.py predict recasepunc/checkpoint', shell=True, text=True, input=text)
-
-# Записываем результат в файл "data.txt"
-with open('data.txt', 'w') as f:
-    json.dump(cased, f, ensure_ascii=False, indent=4)
+print(text)
