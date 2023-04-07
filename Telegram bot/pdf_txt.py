@@ -8,10 +8,10 @@ import io
 
 resource_manager = PDFResourceManager()
 fake_file_handle = io.StringIO()
-converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+converter = TextConverter(resource_manager, fake_file_handle)
 page_interpreter = PDFPageInterpreter(resource_manager, converter)
 
-with open('testus.pdf', 'rb') as fh:
+with open('docx2txt.pdf', 'rb') as fh:
 
     for page in PDFPage.get_pages(fh,
                                   caching=True,
@@ -24,4 +24,4 @@ with open('testus.pdf', 'rb') as fh:
 converter.close()
 fake_file_handle.close()
 
-print(text)
+print(text, file=open("docx2txt.txt","a"))
