@@ -3,10 +3,12 @@ import asyncio
 import pyttsx3
 import os
 from pathlib import Path
-
+import pdfminer.high_level
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
 from aiogram import Bot
+
+import aspose.words as aw
 
 from docx2pdf import convert
 from pdfminer3.layout import LAParams, LTTextBox
@@ -45,38 +47,31 @@ dp = Dispatcher(bot,storage=storage)
 logfile = str(datetime.date.today()) + '.log' # формируем имя лог-файла
 class Form(StatesGroup):
     trt = State()
-    trt1 = State()
-    trt2 = State()
+    #trt1 = State()
+    #trt2 = State()
     trt3 = State()
 
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("Hello!")
+    await message.answer("Привет!")
 
 @dp.message_handler(commands="ttv")
 async def cmd_ttv0(message: types.Message):
-    await message.reply('Выберите нужную функцию на клавиатуре', reply_markup=reply_keyboard)
+    await message.reply('Выберите нужную функцию на клавиатуре, в том случае если вы ошиблись при выборе, напишите: "Отмена" ', reply_markup=reply_keyboard)
 
 
 @dp.message_handler(content_types=["text"], text='Сообщение в голос')
 async def cmd_ttv(message: types.Message):
     await bot.send_message(message.from_user.id,'Для начала отправьте ваш текст')
     await Form.trt.set()
-@dp.message_handler(content_types=["text"], text='Файл txt в голос')
-async def cmd_ttv1(message: types.Message):
-    await bot.send_message(message.from_user.id,'Для начала отправьте ваш txt файл')
-    await Form.trt1.set()
-@dp.message_handler(content_types=["text"], text='Файл pdf в голос')
-async def cmd_ttv2(message: types.Message):
-    await bot.send_message(message.from_user.id,'Для начала отправьте ваш pdf файл')
-    await Form.trt2.set()
-@dp.message_handler(content_types=["text"], text='Файл docx в голос')
+
+@dp.message_handler(content_types=["text"], text='Файл docx/pdf/txt в голос')
 async def cmd_ttv3(message: types.Message):
-    await bot.send_message(message.from_user.id,'Для начала отправьте ваш docx файл')
+    await bot.send_message(message.from_user.id,'Для начала отправьте ваш docx/pdf/txt файл')
     await Form.trt3.set()
 
-@dp.message_handler(state='*', commands='cancel')
-@dp.message_handler(Text(equals='cancel', ignore_case=True), state='*')
+@dp.message_handler(state='*', commands='Отмена')
+@dp.message_handler(Text(equals='Отмена', ignore_case=True), state='*')
 async def cancel_handler(message: types.Message, state: FSMContext):
     """
     Allow user to cancel any action
@@ -89,7 +84,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     # Cancel state and inform user about it
     await state.finish()
     # And remove keyboard (just in case)
-    await message.reply('Cancelled.', reply_markup=types.ReplyKeyboardRemove())
+    await message.reply('Функция отменена', reply_markup=types.ReplyKeyboardRemove())
 
 @dp.message_handler(state=Form.trt)
 async def process_age(message: types.Message, state: FSMContext):
@@ -100,123 +95,33 @@ async def process_age(message: types.Message, state: FSMContext):
     await message.reply_document(open('test.mp3', 'rb'))
     await state.finish()
 
-@dp.message_handler(state=Form.trt1,content_types=types.ContentType.DOCUMENT)
-async def process_age(message: types.Document, state: FSMContext):
-    await message.reply(text='файл получен, начинаю поиск ошибок...')
-    file_id = message.document.file_id
-    file = await bot.get_file(file_id)
-    file_path = file.file_path
-    await bot.download_file(file_path, "txt.rtf")
-    file = open('txt.rtf', 'r', encoding="utf-8")
-    text = file.read()
-    file.close()
-    engine = pyttsx3.init()
-    engine.save_to_file(text, 'txtmp3.mp3')
-    engine.runAndWait()
-    await message.reply_document(open('txtmp3.mp3', 'rb'))
-    await state.finish()
-@dp.message_handler(state=Form.trt2,content_types=types.ContentType.DOCUMENT)
-async def process_age(message: types.Document, state: FSMContext):
-    await message.reply(text='файл получен, начинаю поиск ошибок...')
-    file_id = message.document.file_id
-    file = await bot.get_file(file_id)
-    file_path = file.file_path
-    await bot.download_file(file_path, "pdf2txt.pdf")
-    resource_manager = PDFResourceManager()
-    fake_file_handle = io.StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle)
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-
-    with open('pdf2txt.pdf', 'rb') as fh:
-        for page in PDFPage.get_pages(fh,
-                                      caching=True,
-                                      check_extractable=True):
-            page_interpreter.process_page(page)
-
-        text = fake_file_handle.getvalue()
-
-    # close open handles
-    converter.close()
-    fake_file_handle.close()
-    file = open('pdf2txt.txt', 'r', encoding="utf-8")
-    text = file.read()
-    file.close()
-    engine = pyttsx3.init()
-    engine.save_to_file(text, 'pdf2txt.mp3')
-    engine.runAndWait()
-    await message.reply_document(open('pdf2txt.mp3', 'rb'))
-    await state.finish()
 @dp.message_handler(state=Form.trt3,content_types=types.ContentType.DOCUMENT)
 async def process_age(message: types.Document, state: FSMContext):
-    await message.reply(text='файл получен, начинаю поиск ошибок...')
+    await message.reply(text='файл получен, конвертируем')
     file_id = message.document.file_id
     file = await bot.get_file(file_id)
     file_path = file.file_path
     await bot.download_file(file_path, "docx2txt.docx")
-    convert("docx2txt.docx")
-    convert("docx2txt.docx", "docx2txt.pdf")
-    resource_manager = PDFResourceManager()
-    fake_file_handle = io.StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle)
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-
-    with open('docx2txt.pdf', 'rb') as fh:
-        for page in PDFPage.get_pages(fh,
-                                      caching=True,
-                                      check_extractable=True):
-            page_interpreter.process_page(page)
-
-        text = fake_file_handle.getvalue()
-
-    # close open handles
-    converter.close()
-    fake_file_handle.close()
-    file = open('docx2txt.txt', 'r', encoding="utf-8")
+    doc = aw.Document("docx2txt.docx")
+    doc.save("docx2txt.txt")
+    with open('docx2txt.txt') as old, open('docx2txtnew.txt', 'w') as new:
+        lines = old.readlines()
+        new.writelines(lines[2:-1])
+    file = open('docx2txtnew.txt', 'r', encoding="utf-8")
     text = file.read()
-    file.close()
     engine = pyttsx3.init()
-    engine.save_to_file(text, 'docx2txt.mp3')
+    engine.save_to_file(text, 'docx2txtnew.mp3')
     engine.runAndWait()
-    await message.reply_document(open('docx2txt.mp3', 'rb'))
+    await message.reply_document(open('docx2txtnew.mp3', 'rb'))
+    file.close()
     await state.finish()
-
-@dp.message_handler(content_types=types.ContentType.DOCUMENT)
-async def fileHandle(message: types.Document):
-    await message.reply(text='файл получен, начинаю поиск ошибок...')
-    file_id = message.document.file_id
-    file = await bot.get_file(file_id)
-    file_path = file.file_path
-    await bot.download_file(file_path, "opdf.pdf")
-
-    resource_manager = PDFResourceManager()
-    fake_file_handle = io.StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle)
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-
-    with open('docx2txt.pdf', 'rb') as fh:
-        for page in PDFPage.get_pages(fh,
-                                      caching=True,
-                                      check_extractable=True):
-            page_interpreter.process_page(page)
-
-        text = fake_file_handle.getvalue()
-
-    # close open handles
-    converter.close()
-    fake_file_handle.close()
-
-    file = open('opdf.txt', 'r', encoding="utf-8")
-    text = file.read()
-    file.close()
-    engine = pyttsx3.init()
-    engine.save_to_file(text, 'testpdf.mp3')
-    engine.runAndWait()
-    await message.reply_document(open('testpdf.mp3', 'rb'))
 
 
 @dp.message_handler(commands=["help"])
 async def cmd_start(message: types.Message):
-    await message.answer("Список команд")
+    await message.answer("/start - Запускает бота в первый раз(не думаю что она вам ещё понадобиться) \n"+
+                         "/help - Показывает список команд \n"+
+                         "/ttv - Конвертирует файлы и текст в голосовые сообщения, в случае неправильного выбора пропишите: 'Отмена' ")
 
 async def handle_file(file: File, file_name: str, path: str):
     Path(f"{path}").mkdir(parents=True, exist_ok=True)
