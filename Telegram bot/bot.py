@@ -53,7 +53,7 @@ class Form(StatesGroup):
 
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("Привет!")
+    await message.answer("Привет, для начала Вы можете узнать о нашем боте чуть больше, используя команду /help")
 
 @dp.message_handler(commands="ttv")
 async def cmd_ttv0(message: types.Message):
@@ -121,7 +121,8 @@ async def process_age(message: types.Document, state: FSMContext):
 async def cmd_start(message: types.Message):
     await message.answer("/start - Запускает бота в первый раз(не думаю что она вам ещё понадобиться) \n"+
                          "/help - Показывает список команд \n"+
-                         "/ttv - Конвертирует файлы и текст в голосовые сообщения, в случае неправильного выбора пропишите: 'Отмена' ")
+                         "/ttv - Конвертирует файлы и текст в голосовые сообщения, в случае неправильного выбора пропишите: 'Отмена'. Если Вы хотите повторно использовать функцию, то Вам нужно повторно её настроить \n"+
+                         "Для перевода вашего голосового сообщения просто отправьте или перешлите его в этот чат")
 
 async def handle_file(file: File, file_name: str, path: str):
     Path(f"{path}").mkdir(parents=True, exist_ok=True)
@@ -142,7 +143,9 @@ async def voice_message_handler(message: types.Message):
     sound = "two.wav"
     r = sr.Recognizer()
     with sr.AudioFile(sound) as source:
-        r.adjust_for_ambient_noise(source)
+        #r.energy_threshold = 3500
+        r.pause_threshold = 2
+        r.adjust_for_ambient_noise(source, duration=0.5)
         print('Convert.')
         audio = r.listen(source)
         query = r.recognize_google(audio, language='ru-RU')
